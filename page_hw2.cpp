@@ -31,10 +31,6 @@ char *page::get_key(void *record){
 	return key;
 }
 
-// uint64_t page::get_val(void *key){
-// 	uint64_t val= *(uint64_t*)((uint64_t)key+(uint64_t)strlen((char*)key)+1);
-// 	return val;
-// }
 
 uint64_t page::get_val(void *key) {
     uint64_t val = *(uint64_t *)((uint64_t)key + sizeof(uint16_t) + strlen(get_key(key)) + 1);
@@ -188,10 +184,37 @@ void page::defrag(){
 }
 
 page* page::split(char *key, uint64_t val, char** parent_key){
-	// Please implement this function in project 2.
-	page *new_page;
-	return new_page;
+    // Implement the split logic here
+    // This function should create a new page, move half of the records to the new page
+    // Update the parent_key with the median value
+    page *new_page = new page(get_type());
+
+    uint32_t num_data = hdr.get_num_data();
+    int median_pos = num_data / 2;
+    void *offset_array = hdr.get_offset_array();
+
+    for (int i = median_pos; i < num_data; i++) {
+        uint16_t off = *(uint16_t *)((uint64_t)offset_array + i * 2);
+        void *data_region = (void *)((uint64_t)this + off);
+        char *stored_key = get_key(data_region);
+        uint64_t stored_val = get_val(data_region);
+
+        new_page->insert(stored_key, stored_val);
+    }
+
+    // Set the leftmost pointer of the new page to the rightmost pointer of the current page
+    new_page->set_leftmost_ptr(get_leftmost_ptr());
+
+    // Update the number of records in both pages
+    hdr.set_num_data(median_pos);
+    new_page->hdr.set_num_data(num_data - median_pos);
+
+    // Update the parent_key with the median key from the new page
+    *parent_key = strdup(new_page->get_key((void *)((uint64_t)new_page + get2byte(new_page->hdr.get_offset_array()))));
+
+    return new_page;
 }
+
 
 
 void page::print(){
